@@ -42,6 +42,7 @@ const nopt = require('nopt'),
     utils = require('./lib/utils'),
     clientState = require('./lib/clientstate'),
     initialiseWine = require('./lib/exec').initialiseWine,
+    runExecClient = require('./lib/execution/client').runExecClient,
     clientStateGoldenifier = require('./lib/clientstate-normalizer').ClientStateGoldenifier,
     clientStateNormalizer = require('./lib/clientstate-normalizer').ClientStateNormalizer;
 
@@ -54,6 +55,7 @@ const opts = nopt({
     port: [Number],
     propDebug: [Boolean],
     debug: [Boolean],
+    executionClient: [Boolean],
     static: [String],
     archivedVersions: [String],
     // Ignore fetch marks and assume every compiler is found locally
@@ -194,10 +196,16 @@ function getGoldenLayoutFromClientState(state) {
 }
 
 const awsProps = props.propsFor("aws");
+const execProps = props.propsFor("execution");
 
 aws.initConfig(awsProps)
     .then(initialiseWine)
     .then(() => {
+        if (opts.executionClient) {
+            runExecClient(compilerProps, ceProps, execProps);
+            return;
+        }
+
         // function to load internal binaries (i.e. lib/source/*.js)
         function loadSources() {
             const sourcesDir = "lib/sources";
@@ -210,7 +218,7 @@ aws.initConfig(awsProps)
         const ClientOptionsHandler = require('./lib/options-handler');
         const clientOptionsHandler = new ClientOptionsHandler(fileSources, compilerProps, defArgs);
         const CompilationEnvironment = require('./lib/compilation-env');
-        const compilationEnvironment = new CompilationEnvironment(compilerProps, defArgs.doCache);
+        const compilationEnvironment = new CompilationEnvironment(compilerProps, defArgs.doCache, execProps);
         const CompileHandler = require('./lib/handlers/compile').Handler;
         const compileHandler = new CompileHandler(compilationEnvironment, awsProps);
         const StorageHandler = require('./lib/storage/storage');
